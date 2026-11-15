@@ -1,45 +1,14 @@
-# llmrouter
+# @rohan9024/llmrouter
 
-> Zero-runtime-dependency, in-process multi-provider LLM router and automatic fallback.
+> Zero-dependency, in-process TypeScript LLM router with reliability, capability filtering, adaptive routing, and an agent-first CLI.
 
-## Quickstart
+## Install
+- npm: `npm install @rohan9024/llmrouter`
+- Agent Skill: `npx skills add rohan9024/llmrouter --skill llmrouter`
+- Quick Setup: `npx @rohan9024/llmrouter init --yes && npx @rohan9024/llmrouter doctor --json`
 
-```typescript
-import { Router } from 'llmrouter';
-
-const router = new Router({
-  models: [
-    'openai/gpt-4o',
-    'anthropic/claude-3-7-sonnet',
-    'groq/llama-3.3-70b-versatile'
-  ]
-});
-
-const response = await router.chat.completions.create({
-  messages: [
-    { role: 'system', content: 'You are a helpful assistant.' },
-    { role: 'user', content: 'Explain quantum computing.' }
-  ]
-});
-
-console.log(response.choices[0].message.content);
-console.log(response._routerMeta);
-```
-
-## Features
-
-- In-process fallback; no proxy server or Docker.
-- Retries rate limits, server errors, timeouts, and network failures.
-- Translates OpenAI-style messages to Anthropic's Messages API.
-- Supports streaming, with fallback before the first chunk.
-- Uses native `fetch` and has no runtime dependencies.
-
-## Supported targets
-
-- `openai/model-name`
-- `anthropic/model-name`
-- `groq/model-name`
-- `gemini/model-name`
-- `ollama/model-name`
-
-See README.md for environment variables, limitations, and development commands.
+## Documentation
+- [Full Reference](llms-full.txt)
+- [API Reference](docs/API.md)
+- [Providers Matrix](docs/PROVIDERS.md)
+- [Troubleshooting](docs/TROUBLESHOOTING.md)

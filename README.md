@@ -1,118 +1,110 @@
-# llmrouter
 
-A zero-runtime-dependency, in-process LLM router with ordered provider fallback.
+# @rohan9024/llmrouter
 
-> **Status:** early-stage project. Review provider API compatibility and test against your own accounts before production use.
+**The agent-friendly reliability and routing engine for Node.js AI applications.**
 
-## Features
+In-process multi-provider routing with zero runtime dependencies, automatic failover, retries, circuit breakers, capability filtering, cost budgets, and an agent-first CLI.
 
-- In-process routing; no proxy server or Docker service.
-- Ordered fallback across OpenAI, Anthropic, Groq, Google Gemini's OpenAI-compatible endpoint, and local Ollama.
-- OpenAI-style chat request and response shape.
-- Anthropic request/response translation.
-- Retry on rate limits, server errors, network errors, and timeouts.
-- Streaming support with fallback if stream setup or the first chunk fails.
-- Native `fetch`; no runtime SDK dependencies.
-
-## Requirements
-
-- Node.js 18+ (Node.js 20+ recommended).
-- API keys for the hosted providers you use.
-- `fetch` and `AbortSignal.timeout` support.
-
-## Install
+## Installation
 
 ```bash
-npm install llmrouter
+npm install @rohan9024/llmrouter
 ```
 
-## Quick start
+## AI Coding Agent Setup (Cursor, Claude Code, Codex, Copilot, Windsurf)
 
-```ts
-import { Router } from 'llmrouter';
+Install the official Agent Skill via skills.sh:
+
+```bash
+npx skills add rohan9024/llmrouter --skill llmrouter
+```
+
+Alternatively, initialize and verify directly in any Node.js project:
+
+```bash
+npx @rohan9024/llmrouter init --yes
+npx @rohan9024/llmrouter doctor
+```
+
+## Quickstart
+
+```typescript
+import { Router } from '@rohan9024/llmrouter';
 
 const router = new Router({
   models: [
-    'openai/gpt-4o',
-    'anthropic/claude-3-7-sonnet',
-    'groq/llama-3.3-70b-versatile'
+    'openai/gpt-5-mini',
+    'anthropic/claude-sonnet-5-5',
+    'groq/openai/gpt-oss-120b',
   ],
-  timeoutMs: 30000
+  strategy: 'balanced',
+  retry: {
+    maxRetriesPerTarget: 1,
+    maxTotalAttempts: 4,
+  },
+  circuitBreaker: {
+    enabled: true,
+    failureThreshold: 5,
+    openDurationMs: 30_000,
+  },
 });
 
 const response = await router.chat.completions.create({
   messages: [
-    { role: 'system', content: 'You are a helpful assistant.' },
-    { role: 'user', content: 'Explain quantum computing.' }
-  ]
+    {
+      role: 'system',
+      content: 'You are a helpful assistant.',
+    },
+    {
+      role: 'user',
+      content: 'Explain circuit breakers concisely.',
+    },
+  ],
 });
-
-if (Symbol.asyncIterator in Object(response)) {
-  throw new Error('Expected a non-streaming response');
-}
 
 console.log(response.choices[0].message.content);
 console.log(response._routerMeta);
 ```
 
-## API keys
+## Key Features
 
-Set environment variables before starting your app:
+### Zero Runtime Dependencies
 
-```bash
-export OPENAI_API_KEY="..."
-export ANTHROPIC_API_KEY="..."
-export GROQ_API_KEY="..."
-export GEMINI_API_KEY="..."
-```
+- Native `fetch`.
+- Node.js >=22.
+- Dual ESM + CommonJS support.
 
-Or pass keys explicitly:
+### Separated Reliability Engine
 
-```ts
-const router = new Router({
-  models: ['openai/gpt-4o', 'anthropic/claude-3-7-sonnet'],
-  apiKeys: {
-    openai: process.env.OPENAI_API_KEY ?? '',
-    anthropic: process.env.ANTHROPIC_API_KEY ?? ''
-  }
-});
-```
+- Bounded per-target retries.
+- Retry-After quota cooldowns.
+- Circuit breakers with half-open probing.
+- Concurrency caps.
+- AbortSignal propagation.
 
-Ollama normally does not require an API key.
+### Capability-Safe Routing
 
-## Streaming
+Automatically prevents sending vision, tool-calling, or JSON-schema requests to incompatible models.
 
-```ts
-const stream = await router.chat.completions.create({
-  messages: [{ role: 'user', content: 'Write a short poem.' }],
-  stream: true
-});
+### Explainable Decisions
 
-if (Symbol.asyncIterator in Object(stream)) {
-  for await (const chunk of stream) {
-    process.stdout.write(chunk.choices[0]?.delta?.content ?? '');
-  }
-}
-```
+Inspect routing decisions and operational metrics using:
 
-## Development
+- `router.explain(request)`
+- `router.stats()`
+
+### Workload Benchmarking
+
+Run benchmarks against your evaluation dataset to derive data-backed routing weights.
 
 ```bash
-npm install
-npm test
-npm run typecheck
-npm run build
+npx @rohan9024/llmrouter benchmark --dataset eval.jsonl --recommend-policy
 ```
 
-## Important limitations
+## Documentation
 
-- Fallback occurs for request failures and, for streaming, failures before the first chunk. Once stream content has been delivered, the router cannot transparently restart on another provider without risking duplicated or inconsistent output.
-- Provider models do not have identical capabilities, context limits, pricing, or output behavior.
-- The current implementation targets text chat messages. Tool calling, multimodal inputs, provider-specific options, and exact token-usage parity are not normalized.
-- Gemini uses Google's OpenAI-compatible endpoint; confirm current endpoint/model support and API-key requirements.
-- The library does not guarantee sub-50ms failover. A failed request may wait for its timeout or provider response before moving to the next provider.
-- Never expose API keys in client-side/browser code. Use this library from a trusted server environment.
-
-## License
-
-MIT
+- [API Reference](docs/API.md)
+- [Providers & Capabilities](docs/PROVIDERS.md)
+- [Troubleshooting](docs/TROUBLESHOOTING.md)
+- [Migration Guide](MIGRATION.md)
+- [Changelog](CHANGELOG.md)
