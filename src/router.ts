@@ -20,6 +20,7 @@ import { RoutingPlanner } from './routing/planner.js';
 import { MetricsTracker } from './observability/metrics.js';
 import { normalizeRequest } from './core/request.js';
 import { ExecutionEngine } from './core/engine.js';
+import { TelemetryManager } from './telemetry.js';
 
 export class Router {
   private readonly config: RouterConfig;
@@ -30,6 +31,7 @@ export class Router {
   private readonly concurrency: ConcurrencyLimiter;
   private readonly planner: RoutingPlanner;
   private readonly metrics: MetricsTracker;
+  private readonly telemetryManager: TelemetryManager;
   private readonly engine: ExecutionEngine;
   private readonly configuredModels: ModelDefinition[];
   private readonly now: () => number;
@@ -49,6 +51,13 @@ export class Router {
     this.concurrency = new ConcurrencyLimiter(cfg.concurrency);
     this.planner = new RoutingPlanner(cfg.adaptive);
     this.metrics = new MetricsTracker();
+    this.telemetryManager = new TelemetryManager(cfg);
+
+    // Hook up metrics emitter to telemetry manager if listeners are passed or bridge metrics
+    this.metrics.on('*', (payload) => {
+      this.telemetryManager.emit(payload);
+    });
+
     this.configuredModels = cfg.models.map(m => this.registry.resolve(m));
 
     this.engine = new ExecutionEngine(
@@ -73,12 +82,12 @@ export class Router {
     this.adapters.register(provider, adapter);
   }
 
-  on(event: RouterEventType, listener: RouterEventListener): () => void {
-    return this.metrics.on(event, listener);
+  on(event: RouterEventType | '*', listener: RouterEventListener): () => void {
+    return this.telemetryManager.on(event, listener);
   }
 
-  off(event: RouterEventType, listener: RouterEventListener): void {
-    this.metrics.off(event, listener);
+  off(event: RouterEventType | '*', listener: RouterEventListener): void {
+    this.telemetryManager.off(event, listener);
   }
 
   stats(): RouterStats {

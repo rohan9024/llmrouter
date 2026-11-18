@@ -43,8 +43,13 @@ export class MetricsTracker {
   private requestLatencies: number[] = [];
   private modelMetrics = new Map<string, InternalModelMetrics>();
   private listeners = new Map<RouterEventType, Set<RouterEventListener>>();
+  private globalListeners = new Set<RouterEventListener>();
 
-  on(event: RouterEventType, listener: RouterEventListener): () => void {
+  on(event: RouterEventType | '*', listener: RouterEventListener): () => void {
+    if (event === '*') {
+      this.globalListeners.add(listener);
+      return () => this.globalListeners.delete(listener);
+    }
     let set = this.listeners.get(event);
     if (!set) {
       set = new Set();
@@ -54,19 +59,26 @@ export class MetricsTracker {
     return () => this.off(event, listener);
   }
 
-  off(event: RouterEventType, listener: RouterEventListener): void {
+  off(event: RouterEventType | '*', listener: RouterEventListener): void {
+    if (event === '*') {
+      this.globalListeners.delete(listener);
+      return;
+    }
     this.listeners.get(event)?.delete(listener);
   }
 
   emit(payload: RouterEventPayload): void {
+    for (const fn of this.globalListeners) {
+      try {
+        fn(payload);
+      } catch {}
+    }
     const set = this.listeners.get(payload.type);
     if (!set) return;
     for (const fn of set) {
       try {
         fn(payload);
-      } catch {
-        // Ignore listener errors
-      }
+      } catch {}
     }
   }
 
